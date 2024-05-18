@@ -2,6 +2,7 @@ package di
 
 import data.MongoDB
 import data.viewmodels.HomeVM
+import data.viewmodels.NoteDetailsVM
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
@@ -9,6 +10,7 @@ import org.koin.dsl.module
 val mongoModule = module {
     single { MongoDB() }
     factory { HomeVM(get()) }
+    factory { NoteDetailsVM(get()) }
 }
 
 fun initKoin() {

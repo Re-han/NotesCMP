@@ -34,6 +34,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
+            implementation(libs.kotlinx.datetime)
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.ui)
@@ -48,7 +49,6 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.mongodb.realm)
             implementation(libs.kotlin.coroutines)
-            implementation(libs.stately.common)
         }
     }
 }

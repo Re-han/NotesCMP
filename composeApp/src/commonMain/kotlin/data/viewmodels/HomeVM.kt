@@ -5,33 +5,29 @@ import androidx.compose.runtime.mutableStateOf
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import data.MongoDB
-import domain.Notes
+import domain.Note
 import domain.Results
-import domain.Results.Loading
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class HomeVM(private var mongoDB: MongoDB) : ScreenModel {
-    private var _pinnedNotes: MutableState<Results<List<Notes>>> = mutableStateOf(Results.Loading)
-    val pinnedNotes = _pinnedNotes
+    private var _pinnedNote: MutableState<Results<List<Note>>> = mutableStateOf(Results.Loading)
+    val pinnedNotes = _pinnedNote
 
-    private var _otherNotes: MutableState<Results<List<Notes>>> = mutableStateOf(Results.Loading)
-    val otherNotes = _otherNotes
+    private var _otherNote: MutableState<Results<List<Note>>> = mutableStateOf(Results.Loading)
+    val otherNotes = _otherNote
 
     init {
         screenModelScope.launch(Dispatchers.Main) {
             mongoDB.readPinnedNotes().collectLatest {
-                _pinnedNotes.value = it
+                _pinnedNote.value = it
             }
         }
         screenModelScope.launch(Dispatchers.Main) {
             mongoDB.readAllNotes().collectLatest {
-                _otherNotes.value = it
+                _otherNote.value = it
             }
         }
     }
-
-
 }

@@ -1,13 +1,15 @@
 package screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,18 +24,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.material.icons.outlined.Pin
-import androidx.compose.material.icons.outlined.PinInvoke
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -66,8 +63,11 @@ import cafe.adriel.voyager.koin.getScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import data.viewmodels.HomeVM
-import domain.Notes
+import data.viewmodels.NoteDetailsVM
+import domain.Note
+import domain.NoteEvents
 import domain.Results
+import epochToNormalTime
 
 class HomePageNotes : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -75,7 +75,7 @@ class HomePageNotes : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         var searchValue by remember { mutableStateOf("") }
-        var gridListView by remember { mutableStateOf(true) }
+        var gridListView by remember { mutableStateOf(false) }
         var showDialog by remember { mutableStateOf(false) }
         val sortList = remember {
             mutableListOf(
@@ -85,9 +85,10 @@ class HomePageNotes : Screen {
                 "Sort by Date (oldest)",
             )
         }
-        val viewModel = getScreenModel<HomeVM>()
-        val pinnedNotes by viewModel.pinnedNotes
-        val otherNotes by viewModel.otherNotes
+        val homeVM = getScreenModel<HomeVM>()
+        val noteDetailsVM = getScreenModel<NoteDetailsVM>()
+        val pinnedNotes by homeVM.pinnedNotes
+        val otherNotes by homeVM.otherNotes
 
         if (showDialog)
             Dialog(onDismissRequest = {
@@ -129,7 +130,7 @@ class HomePageNotes : Screen {
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { navigator.push(NoteDetailScreen()) },
+                    onClick = { navigator.push(NoteDetailScreen(null, true)) },
                     shape = RoundedCornerShape(size = 12.dp)
                 ) {
                     Icon(
@@ -159,8 +160,7 @@ class HomePageNotes : Screen {
                         Text(text = "Search")
                     },
                     leadingIcon = {
-                        Icon(imageVector = Icons.Default.Search, "search",
-                            modifier = Modifier.clickable { navigator.push(NoteDetailScreen()) })
+                        Icon(imageVector = Icons.Default.Search, "search")
                     },
                     trailingIcon = {
                         if (gridListView)
@@ -196,45 +196,68 @@ class HomePageNotes : Screen {
                             showDialog = true
                         })
                 }
-                NotesUIAndOperations(
-                    Modifier,
-                    onSelect = {},
-                    onDelete = {},
-                    pinned = { note, notePinned ->
-                    },
-                    notesResults = pinnedNotes,
-                    gridListView = gridListView,
-                    sectionTitle = "Pinned Notes"
-                )
 
-                NotesUIAndOperations(
-                    Modifier,
-                    onSelect = {},
-                    onDelete = {},
-                    pinned = { note, notePinned ->
-                    },
-                    notesResults = otherNotes,
-                    gridListView = gridListView,
-                    sectionTitle = "Other Notes"
+                Column {
+                    NotesUIAndOperations(
+                        Modifier,
+                        onSelect = {
+                            navigator.push(NoteDetailScreen(it, false))
+                        },
+                        onDelete = {
+                            noteDetailsVM.setEvents(NoteEvents.Delete(it))
+                        },
+                        pinned = { note, notePinned ->
+                            noteDetailsVM.setEvents(NoteEvents.SetPinned(note, notePinned))
+                        },
+                        noteResults = pinnedNotes,
+                        gridListView = gridListView,
+                        sectionTitle = "Pinned Notes"
+                    )
+                }
+                Column {
+                    NotesUIAndOperations(
+                        Modifier,
+                        onSelect = {
+                            navigator.push(NoteDetailScreen(it, false))
+                        },
+                        onDelete = {
+                            noteDetailsVM.setEvents(NoteEvents.Delete(it))
+                        },
+                        pinned = { note, notePinned ->
+                            noteDetailsVM.setEvents(NoteEvents.SetPinned(note, notePinned))
+                        },
+                        noteResults = otherNotes,
+                        gridListView = gridListView,
+                        sectionTitle = "Other Notes"
+                    )
+                }
+                if (pinnedNotes.getSuccessDataOrNull()?.isEmpty() == true
+                    && otherNotes.getSuccessDataOrNull()?.isEmpty() == true
                 )
+                    Text(
+                        "No Notes",
+                        modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                        textAlign = TextAlign.Center
+                    )
             }
         }
     }
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NotesUIAndOperations(
     modifier: Modifier = Modifier,
-    notesResults: Results<List<Notes>>?,
-    onSelect: ((Notes) -> Unit)? = null,
-    onDelete: ((Notes) -> Unit)? = null,
-    pinned: ((Notes, Boolean) -> Unit)? = null,
+    noteResults: Results<List<Note>>?,
+    onSelect: ((Note) -> Unit)? = null,
+    onDelete: ((Note) -> Unit)? = null,
+    pinned: ((Note, Boolean) -> Unit)? = null,
     gridListView: Boolean,
     sectionTitle: String
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    var noteToDelete: Notes? by remember { mutableStateOf(null) }
+    var noteToDelete: Note? by remember { mutableStateOf(null) }
 
     if (showDialog) {
         AlertDialog(
@@ -243,7 +266,7 @@ fun NotesUIAndOperations(
             },
             text = {
                 Text(
-                    text = "Are you sure you want to remove '${noteToDelete!!.title}' task?",
+                    text = "Are you sure you want to remove '${noteToDelete!!.title}' note?",
                     fontSize = MaterialTheme.typography.bodyMedium.fontSize
                 )
             },
@@ -273,148 +296,160 @@ fun NotesUIAndOperations(
         )
     }
 
-    notesResults?.DisplayResult(
+    noteResults?.DisplayResult(
         onLoading = {
             Text("Loading")
         },
         onSuccess = { notes ->
             if (notes.isNotEmpty()) {
-                Text(
-                    sectionTitle,
-                    style = TextStyle(fontSize = MaterialTheme.typography.headlineLarge.fontSize)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Column() {
+                    Text(
+                        sectionTitle,
+                        style = TextStyle(fontSize = MaterialTheme.typography.headlineLarge.fontSize),
+                        modifier = modifier.padding(horizontal = 8.dp),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                if (gridListView) {
-                    LazyVerticalStaggeredGrid(
-                        modifier = modifier.fillMaxSize()
-                            .padding(vertical = 16.dp, horizontal = 8.dp),
-                        columns = StaggeredGridCells.Fixed(2),
-                        verticalItemSpacing = 8.dp,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        content = {
+                    if (gridListView) {
+                        LazyVerticalStaggeredGrid(
+                            modifier = modifier.fillMaxHeight()
+                                .padding(vertical = 16.dp, horizontal = 8.dp),
+                            columns = StaggeredGridCells.Fixed(2),
+                            verticalItemSpacing = 8.dp,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            content = {
+                                items(notes, key = { note -> note._id.toHexString() }) { note ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .combinedClickable(onClick = {
+                                                onSelect?.invoke(note)
+                                            }, onLongClick = {
+                                                showDialog = true
+                                                noteToDelete = note
+                                            }),
+                                        border = BorderStroke(
+                                            .5.dp,
+                                            color = MaterialTheme.colorScheme.tertiaryContainer
+                                        ),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                            verticalAlignment = Alignment.Top,
+                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(.8f),
+                                                horizontalAlignment = Alignment.Start
+                                            ) {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    note.title,
+                                                    style = TextStyle(fontSize = MaterialTheme.typography.titleLarge.fontSize),
+                                                    overflow = TextOverflow.Ellipsis
+                                                ) //title
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    note.description,
+                                                    style = TextStyle(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
+                                                    maxLines = 3,
+                                                    overflow = TextOverflow.Ellipsis
+                                                ) //description
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+
+                                                Text(
+                                                    epochToNormalTime(
+                                                        note?.createdAt ?: 0L
+                                                    ),
+                                                    style = TextStyle(fontSize = MaterialTheme.typography.bodySmall.fontSize),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                ) //time
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                            }
+                                            if (note.pinned)
+                                                Icon(
+                                                    Icons.Default.PushPin,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.padding(vertical = 8.dp)
+                                                        .clickable { pinned?.invoke(note, false) })
+                                            else
+                                                Icon(
+                                                    Icons.Outlined.PushPin,
+                                                    contentDescription = null,
+                                                    modifier.padding(vertical = 8.dp).clickable {
+                                                        pinned?.invoke(
+                                                            note, true
+                                                        )
+                                                    })
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)
+                                .fillMaxWidth()
+                        ) {
                             items(notes, key = { note -> note._id.toHexString() }) { note ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth()
-                                        .clickable { onSelect?.invoke(note) },
+                                        .combinedClickable(onClick = {
+                                            onSelect?.invoke(note)
+                                        }, onLongClick = {
+                                            showDialog = true
+                                            noteToDelete = note
+                                        }),
                                     border = BorderStroke(
                                         .5.dp,
                                         color = MaterialTheme.colorScheme.tertiaryContainer
                                     ),
                                 ) {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                        verticalAlignment = Alignment.Top,
-                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth(.8f),
-                                            horizontalAlignment = Alignment.Start
-                                        ) {
-                                            Spacer(modifier = Modifier.height(8.dp))
+                                        Column() {
                                             Text(
-                                                "note.title",
+                                                note.title,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = TextStyle(fontSize = MaterialTheme.typography.titleLarge.fontSize),
-                                                color = Color.Gray,
-                                                overflow = TextOverflow.Ellipsis
                                             ) //title
-
-                                            Spacer(modifier = Modifier.height(8.dp))
                                             Text(
-                                                "note.description, note.description, note.descriptionnote.descriptionnote.descriptionnote.description",
-                                                color = Color.Gray,
+                                                note.description,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = TextStyle(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
-                                                maxLines = 3,
-                                                overflow = TextOverflow.Ellipsis
+                                                maxLines = 3
                                             ) //description
-
-                                            Spacer(modifier = Modifier.height(8.dp))
-
                                             Text(
-                                                "note.createdAt".toString(),
-                                                color = Color.Gray,
+                                                epochToNormalTime(note?.createdAt ?: 0L),
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = TextStyle(fontSize = MaterialTheme.typography.bodySmall.fontSize),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                maxLines = 1
                                             ) //time
-                                            Spacer(modifier = Modifier.height(8.dp))
                                         }
                                         if (note.pinned)
                                             Icon(
                                                 Icons.Default.PushPin,
                                                 contentDescription = null,
-                                                modifier = Modifier.padding(vertical = 8.dp)
-                                                    .clickable { pinned?.invoke(note, false) })
+                                                modifier.clickable { pinned?.invoke(note, false) })
                                         else
                                             Icon(
                                                 Icons.Outlined.PushPin,
                                                 contentDescription = null,
-                                                modifier.padding(vertical = 8.dp).clickable {
+                                                modifier.clickable {
                                                     pinned?.invoke(
                                                         note, true
                                                     )
                                                 })
                                     }
                                 }
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
-                        },
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)
-                            .fillMaxWidth()
-                    ) {
-                        items(notes, key = { note -> note._id.toHexString() }) { note ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable { onSelect?.invoke(note) },
-                                border = BorderStroke(
-                                    .5.dp,
-                                    color = MaterialTheme.colorScheme.tertiaryContainer
-                                ),
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column() {
-                                        Text(
-                                            note.title,
-                                            style = TextStyle(fontSize = MaterialTheme.typography.titleLarge.fontSize),
-                                            color = Color.Gray,
-                                        ) //title
-                                        Text(
-                                            note.description,
-                                            color = Color.Gray,
-                                            style = TextStyle(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
-                                            maxLines = 3
-                                        ) //description
-                                        Text(
-                                            note.createdAt.toString(),
-                                            color = Color.Gray,
-                                            style = TextStyle(fontSize = MaterialTheme.typography.bodySmall.fontSize),
-                                            maxLines = 1
-                                        ) //time
-                                    }
-                                    if (note.pinned)
-                                        Icon(
-                                            Icons.Outlined.PushPin,
-                                            contentDescription = null,
-                                            modifier.clickable { pinned?.invoke(note, false) })
-                                    else
-                                        Icon(
-                                            Icons.Outlined.PushPin,
-                                            contentDescription = null,
-                                            modifier.clickable {
-                                                pinned?.invoke(
-                                                    note, true
-                                                )
-                                            })
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
                 }
