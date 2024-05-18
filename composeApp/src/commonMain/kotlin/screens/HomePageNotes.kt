@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -312,7 +313,7 @@ fun NotesUIAndOperations(
 
                     if (gridListView) {
                         LazyVerticalStaggeredGrid(
-                            modifier = modifier.fillMaxHeight()
+                            modifier = modifier.wrapContentHeight()
                                 .padding(vertical = 16.dp, horizontal = 8.dp),
                             columns = StaggeredGridCells.Fixed(2),
                             verticalItemSpacing = 8.dp,
