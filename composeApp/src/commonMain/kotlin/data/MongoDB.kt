@@ -51,7 +51,6 @@ class MongoDB {
                     findLatest(it)?.let { originalNote ->
                         originalNote.title = note.title
                         originalNote.description = note.description
-                        originalNote.pinned = note.pinned
                         originalNote.createdAt = note.createdAt
                     }
                 }
