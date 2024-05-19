@@ -1,5 +1,6 @@
 package screens
 
+import AppContants
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -71,16 +72,18 @@ import domain.Note
 import domain.NoteEvents
 import domain.Results
 import domain.SortOrder
+import domain.core.Preferences
 import epochToNormalTime
 
-class HomePageNotes : Screen {
+class HomePageNotes(private val pref: Preferences) : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
+        val gridValue = pref.getBool(AppContants.GRID_VIEW, false)
         val navigator = LocalNavigator.currentOrThrow
         var searchValue by remember { mutableStateOf("") }
         var searchFocused by remember { mutableStateOf(false) }
-        var gridListView by remember { mutableStateOf(false) }
+        var gridListView by remember { mutableStateOf(gridValue) }
         var showDialog by remember { mutableStateOf(false) }
         var searchNotesPinned = remember { mutableListOf<Note>() }
         var searchNotes = remember { mutableListOf<Note>() }
@@ -204,12 +207,24 @@ class HomePageNotes : Screen {
                                 Icon(
                                     Icons.Outlined.GridView,
                                     "grid",
-                                    Modifier.clickable { gridListView = false })
+                                    Modifier.clickable {
+                                        gridListView = false
+                                        pref.putBool(
+                                            AppContants.GRID_VIEW,
+                                            gridListView
+                                        )
+                                    })
                             else
                                 Icon(
                                     Icons.Outlined.Menu,
                                     "list",
-                                    Modifier.clickable { gridListView = true })
+                                    Modifier.clickable {
+                                        gridListView = true
+                                        pref.putBool(
+                                            AppContants.GRID_VIEW,
+                                            gridListView
+                                        )
+                                    })
                         }
                     },
                     modifier = Modifier.fillMaxWidth().shadow(

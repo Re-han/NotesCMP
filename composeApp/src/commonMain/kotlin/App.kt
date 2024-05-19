@@ -5,16 +5,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.SlideTransition
-import data.MongoDB
-import data.viewmodels.HomeVM
 import di.initKoin
-import org.koin.dsl.module
-import screens.NoteDetailScreen
+import domain.core.Preferences
 import theme.darkScheme
 import theme.lightScheme
 
 @Composable
-fun App() {
+fun App(
+    pref: Preferences
+) {
     initKoin()
 
     val colors = mutableStateOf(
@@ -22,7 +21,7 @@ fun App() {
     )
 
     MaterialTheme(colorScheme = colors.value) {
-        Navigator(HomePageNotes()) {
+        Navigator(HomePageNotes(pref)) {
             SlideTransition(it)
         }
     }
