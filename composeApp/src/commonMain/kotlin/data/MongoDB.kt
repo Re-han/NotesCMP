@@ -2,6 +2,7 @@ package data
 
 import domain.Note
 import domain.Results
+import domain.SortOrder
 import io.realm.kotlin.Realm
 import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.ext.query
@@ -25,17 +26,52 @@ class MongoDB {
         }
     }
 
-    fun readOtherNotes(): Flow<Results<List<Note>>> {
+    fun readOtherNotes(sortOrder: SortOrder = SortOrder.Sort_By_Date_Latest): Flow<Results<List<Note>>> {
         return realm?.query<Note>(query = "createdAt != $0", 0L)?.asFlow()?.map { res ->
-            Results.Success(data = res.list.sortedByDescending { notes -> notes.createdAt }
-                .filter { note: Note -> !note.pinned })
+            Results.Success(data =
+            when (sortOrder) {
+                SortOrder.Sort_By_Desc -> {
+                    res.list.sortedByDescending { notes -> notes.title }
+                }
+
+                SortOrder.Sort_By_Asc -> {
+                    res.list.sortedBy { note: Note -> note.title }
+                }
+
+                SortOrder.Sort_By_Date_Latest -> {
+                    res.list.sortedByDescending { note: Note -> note.createdAt }
+                }
+
+                else -> if (sortOrder == SortOrder.Sort_By_Date_Oldest) {
+                    res.list.sortedBy { note: Note -> note.createdAt }
+                } else {
+                    res.list.sortedByDescending { note: Note -> note.createdAt }
+                }.filter { note: Note -> !note.pinned }
+            })
         } ?: flow { Results.Error("No Notes") }
     }
 
-    fun readPinnedNotes(): Flow<Results<List<Note>>> {
+    fun readPinnedNotes(sortOrder: SortOrder = SortOrder.Sort_By_Date_Latest): Flow<Results<List<Note>>> {
         return realm?.query<Note>(query = "pinned == $0", true)?.asFlow()?.map { res ->
-            Results.Success(data = res.list.sortedByDescending { notes -> notes.createdAt }
-                .filter { notes -> notes.pinned })
+            Results.Success(data = when (sortOrder) {
+                SortOrder.Sort_By_Desc -> {
+                    res.list.sortedByDescending { notes -> notes.title }
+                }
+
+                SortOrder.Sort_By_Asc -> {
+                    res.list.sortedBy { note: Note -> note.title }
+                }
+
+                SortOrder.Sort_By_Date_Latest -> {
+                    res.list.sortedByDescending { note: Note -> note.createdAt }
+                }
+
+                else -> if (sortOrder == SortOrder.Sort_By_Date_Oldest) {
+                    res.list.sortedBy { note: Note -> note.createdAt }
+                } else {
+                    res.list.sortedByDescending { note: Note -> note.createdAt }
+                }.filter { note: Note -> note.pinned }
+            })
         } ?: flow { Results.Error("No Pinned Notes") }
     }
 

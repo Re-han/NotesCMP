@@ -14,14 +14,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
@@ -30,6 +27,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.PushPin
@@ -53,8 +51,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +70,7 @@ import data.viewmodels.NoteDetailsVM
 import domain.Note
 import domain.NoteEvents
 import domain.Results
+import domain.SortOrder
 import epochToNormalTime
 
 class HomePageNotes : Screen {
@@ -77,22 +79,25 @@ class HomePageNotes : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         var searchValue by remember { mutableStateOf("") }
+        var searchFocused by remember { mutableStateOf(false) }
         var gridListView by remember { mutableStateOf(false) }
         var showDialog by remember { mutableStateOf(false) }
         var searchNotesPinned = remember { mutableListOf<Note>() }
         var searchNotes = remember { mutableListOf<Note>() }
         val sortList = remember {
             mutableListOf(
-                "Sort by Ascending",
-                "Sort by Descending",
-                "Sort by Date (latest)",
-                "Sort by Date (oldest)",
+                SortOrder.Sort_By_Asc,
+                SortOrder.Sort_By_Desc,
+                SortOrder.Sort_By_Date_Oldest,
+                SortOrder.Sort_By_Date_Latest
             )
         }
         val homeVM = getScreenModel<HomeVM>()
         val noteDetailsVM = getScreenModel<NoteDetailsVM>()
         val pinnedNotes by homeVM.pinnedNotes
         val otherNotes by homeVM.otherNotes
+        val focusRequester = remember { FocusRequester() }
+        val focusManager = LocalFocusManager.current
 
         if (showDialog)
             Dialog(onDismissRequest = {
@@ -108,10 +113,11 @@ class HomePageNotes : Screen {
                         items(sortList.size) {
                             Column(modifier = Modifier
                                 .clickable {
-                                    //TODO:Add logic for sorting
+                                    homeVM.sorting(sortList[it])
+                                    showDialog = false
                                 }) {
                                 Text(
-                                    text = sortList[it],
+                                    text = sortList[it].toString().replace("_"," "),
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(16.dp)
@@ -155,13 +161,17 @@ class HomePageNotes : Screen {
                     value = searchValue,
                     onValueChange = { searchInput ->
                         searchValue = searchInput
-
+                        searchFocused = true
                         searchNotesPinned = (pinnedNotes.getSuccessDataOrNull()?.filter {
-                            it.title.contains(searchValue) || it.description.contains(searchValue)
+                            it.title.lowercase()
+                                .contains(searchValue.lowercase()) || it.description.lowercase()
+                                .contains(searchValue.lowercase())
                         } ?: listOf()) as MutableList<Note>
 
                         searchNotes = (otherNotes.getSuccessDataOrNull()?.filter {
-                            it.title.contains(searchValue) || it.description.contains(searchValue)
+                            it.title.lowercase()
+                                .contains(searchValue.lowercase()) || it.description.lowercase()
+                                .contains(searchValue.lowercase())
                         } ?: listOf()).toMutableList()
                     },
 
@@ -178,21 +188,34 @@ class HomePageNotes : Screen {
                         Icon(imageVector = Icons.Default.Search, "search")
                     },
                     trailingIcon = {
-                        if (gridListView)
+                        if (searchFocused) {
                             Icon(
-                                Icons.Outlined.GridView,
-                                "grid",
-                                Modifier.clickable { gridListView = false })
-                        else
-                            Icon(
-                                Icons.Outlined.Menu,
-                                "list",
-                                Modifier.clickable { gridListView = true })
+                                Icons.Outlined.Clear,
+                                "clear",
+                                Modifier.clickable {
+                                    focusManager.clearFocus()
+                                    searchValue = ""
+                                    searchFocused = false
+                                    searchNotes = mutableListOf()
+                                    searchNotesPinned = mutableListOf()
+                                })
+                        } else {
+                            if (gridListView)
+                                Icon(
+                                    Icons.Outlined.GridView,
+                                    "grid",
+                                    Modifier.clickable { gridListView = false })
+                            else
+                                Icon(
+                                    Icons.Outlined.Menu,
+                                    "list",
+                                    Modifier.clickable { gridListView = true })
+                        }
                     },
                     modifier = Modifier.fillMaxWidth().shadow(
                         1.dp,
                         shape = RoundedCornerShape(20.dp),
-                    ),
+                    ).focusRequester(focusRequester),
                     textStyle = TextStyle(Color.Black),
                     shape = RoundedCornerShape(20.dp),
                 )
@@ -212,7 +235,9 @@ class HomePageNotes : Screen {
                         })
                 }
 
-                Column {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     NotesUIAndOperations(
                         Modifier,
                         onSelect = {
@@ -230,8 +255,13 @@ class HomePageNotes : Screen {
                         sectionTitle = "Pinned Notes",
                         searchValue = searchValue
                     )
-                }
-                Column {
+
+                    if (searchNotesPinned.isEmpty() || searchNotes.isEmpty()) Spacer(
+                        modifier = Modifier.height(
+                            8.dp
+                        )
+                    )
+
                     NotesUIAndOperations(
                         Modifier,
                         noteResults = otherNotes,
@@ -326,74 +356,71 @@ fun NotesUIAndOperations(
         onSuccess = { notes ->
             if (notes.isNotEmpty()) {
                 Column() {
-                    Text(
-                        sectionTitle,
-                        style = TextStyle(fontSize = MaterialTheme.typography.headlineLarge.fontSize),
-                        modifier = modifier.padding(horizontal = 8.dp),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                    if (searchValue.isBlank()) {
+                        Text(
+                            sectionTitle,
+                            style = TextStyle(fontSize = MaterialTheme.typography.headlineLarge.fontSize),
+                            modifier = modifier.padding(horizontal = 8.dp),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     if (gridListView) {
-                        LazyVerticalStaggeredGrid(
-                            modifier = modifier.wrapContentHeight()
-                                .padding(vertical = 16.dp, horizontal = 8.dp),
-                            columns = StaggeredGridCells.Fixed(2),
-                            verticalItemSpacing = 8.dp,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            content = {
-                                items(
-                                    if (searchValue.isNotBlank()) searchNotes else notes,
-                                    key = { note -> note._id.toHexString() }) { note ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth()
-                                            .combinedClickable(onClick = {
-                                                onSelect?.invoke(note)
-                                            }, onLongClick = {
-                                                showDialog = true
-                                                noteToDelete = note
-                                            }),
-                                        border = BorderStroke(
-                                            .5.dp,
-                                            color = MaterialTheme.colorScheme.tertiaryContainer
-                                        ),
+                        CustomStaggeredVerticalGrid(
+                            modifier = modifier
+                                .padding(horizontal = 8.dp), numColumns = 2
+                        ) {
+                            (if (searchValue.isNotBlank()) searchNotes else notes).forEach { note ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(4.dp)
+                                        .combinedClickable(onClick = {
+                                            onSelect?.invoke(note)
+                                        }, onLongClick = {
+                                            showDialog = true
+                                            noteToDelete = note
+                                        }),
+                                    border = BorderStroke(
+                                        .5.dp,
+                                        color = MaterialTheme.colorScheme.tertiaryContainer
+                                    ),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                        verticalAlignment = Alignment.Top,
+                                        horizontalArrangement = Arrangement.SpaceEvenly
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                            verticalAlignment = Alignment.Top,
-                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth(.8f),
+                                            horizontalAlignment = Alignment.Start
                                         ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(.8f),
-                                                horizontalAlignment = Alignment.Start
-                                            ) {
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    note.title,
-                                                    style = TextStyle(fontSize = MaterialTheme.typography.titleLarge.fontSize),
-                                                    overflow = TextOverflow.Ellipsis
-                                                ) //title
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                note.title,
+                                                style = TextStyle(fontSize = MaterialTheme.typography.titleLarge.fontSize),
+                                                overflow = TextOverflow.Ellipsis
+                                            ) //title
 
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    note.description,
-                                                    style = TextStyle(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
-                                                    maxLines = 3,
-                                                    overflow = TextOverflow.Ellipsis
-                                                ) //description
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                note.description,
+                                                style = TextStyle(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
+                                                maxLines = 3,
+                                                overflow = TextOverflow.Ellipsis
+                                            ) //description
 
-                                                Spacer(modifier = Modifier.height(8.dp))
+                                            Spacer(modifier = Modifier.height(8.dp))
 
-                                                Text(
-                                                    epochToNormalTime(
-                                                        note?.createdAt ?: 0L
-                                                    ),
-                                                    style = TextStyle(fontSize = MaterialTheme.typography.bodySmall.fontSize),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                ) //time
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                            }
+                                            Text(
+                                                epochToNormalTime(
+                                                    note?.createdAt ?: 0L
+                                                ),
+                                                style = TextStyle(fontSize = MaterialTheme.typography.bodySmall.fontSize),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            ) //time
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        if (searchNotes.isEmpty())
                                             if (note.pinned)
                                                 Icon(
                                                     Icons.Default.PushPin,
@@ -409,19 +436,16 @@ fun NotesUIAndOperations(
                                                             note, true
                                                         )
                                                     })
-                                        }
                                     }
                                 }
-                            },
-                        )
+                            }
+                        }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)
+                        Column(
+                            modifier = Modifier.padding(horizontal = 8.dp)
                                 .fillMaxWidth()
                         ) {
-                            items(
-                                if (searchValue.isNotBlank()) searchNotes else notes,
-                                key = { note -> note._id.toHexString() }) { note ->
+                            (if (searchValue.isNotBlank()) searchNotes else notes).forEach { note ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth()
                                         .combinedClickable(onClick = {
@@ -446,12 +470,15 @@ fun NotesUIAndOperations(
                                                 overflow = TextOverflow.Ellipsis,
                                                 style = TextStyle(fontSize = MaterialTheme.typography.titleLarge.fontSize),
                                             ) //title
+                                            Spacer(modifier = Modifier.height(4.dp))
+
                                             Text(
                                                 note.description,
                                                 overflow = TextOverflow.Ellipsis,
                                                 style = TextStyle(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
                                                 maxLines = 3
                                             ) //description
+                                            Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 epochToNormalTime(note?.createdAt ?: 0L),
                                                 overflow = TextOverflow.Ellipsis,
@@ -459,20 +486,26 @@ fun NotesUIAndOperations(
                                                 maxLines = 1
                                             ) //time
                                         }
-                                        if (note.pinned)
-                                            Icon(
-                                                Icons.Default.PushPin,
-                                                contentDescription = null,
-                                                modifier.clickable { pinned?.invoke(note, false) })
-                                        else
-                                            Icon(
-                                                Icons.Outlined.PushPin,
-                                                contentDescription = null,
-                                                modifier.clickable {
-                                                    pinned?.invoke(
-                                                        note, true
-                                                    )
-                                                })
+                                        if (searchNotes.isEmpty())
+                                            if (note.pinned)
+                                                Icon(
+                                                    Icons.Default.PushPin,
+                                                    contentDescription = null,
+                                                    modifier.clickable {
+                                                        pinned?.invoke(
+                                                            note,
+                                                            false
+                                                        )
+                                                    })
+                                            else
+                                                Icon(
+                                                    Icons.Outlined.PushPin,
+                                                    contentDescription = null,
+                                                    modifier.clickable {
+                                                        pinned?.invoke(
+                                                            note, true
+                                                        )
+                                                    })
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -487,4 +520,59 @@ fun NotesUIAndOperations(
         },
     )
 
+}
+
+
+@Composable
+fun CustomStaggeredVerticalGrid(
+    modifier: Modifier = Modifier,
+    numColumns: Int = 2,
+    content: @Composable () -> Unit
+) {
+
+    Layout(
+        content = content,
+        modifier = modifier
+    ) { measurable, constraints ->
+        val columnWidth = (constraints.maxWidth / numColumns)
+        val itemConstraints = constraints.copy(maxWidth = columnWidth)
+        val columnHeights = IntArray(numColumns) { 0 }
+        val placeables = measurable.map { measurable ->
+            val column = testColumn(columnHeights)
+            val placeable = measurable.measure(itemConstraints)
+            columnHeights[column] += placeable.height
+            placeable
+        }
+        val height =
+            columnHeights.maxOrNull()?.coerceIn(constraints.minHeight, constraints.maxHeight)
+                ?: constraints.minHeight
+        layout(
+            width = constraints.maxWidth,
+            height = height
+        ) {
+            val columnYPointers = IntArray(numColumns) { 0 }
+            placeables.forEach { placeable ->
+
+                val column = testColumn(columnYPointers)
+
+                placeable.place(
+                    x = columnWidth * column,
+                    y = columnYPointers[column]
+                )
+                columnYPointers[column] += placeable.height
+            }
+        }
+    }
+}
+
+private fun testColumn(columnHeights: IntArray): Int {
+    var minHeight = Int.MAX_VALUE
+    var columnIndex = 0
+    columnHeights.forEachIndexed { index, height ->
+        if (height < minHeight) {
+            minHeight = height
+            columnIndex = index
+        }
+    }
+    return columnIndex
 }

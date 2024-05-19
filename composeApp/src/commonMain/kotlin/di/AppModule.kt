@@ -3,6 +3,7 @@ package di
 import data.MongoDB
 import data.viewmodels.HomeVM
 import data.viewmodels.NoteDetailsVM
+import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
