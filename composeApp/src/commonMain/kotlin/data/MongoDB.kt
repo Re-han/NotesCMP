@@ -32,21 +32,28 @@ class MongoDB {
             when (sortOrder) {
                 SortOrder.Sort_By_Desc -> {
                     res.list.sortedByDescending { notes -> notes.title }
+                        .filter { note: Note -> !note.pinned }
                 }
 
                 SortOrder.Sort_By_Asc -> {
                     res.list.sortedBy { note: Note -> note.title }
+                        .filter { note: Note -> !note.pinned }
                 }
 
                 SortOrder.Sort_By_Date_Latest -> {
                     res.list.sortedByDescending { note: Note -> note.createdAt }
+                        .filter { note: Note -> !note.pinned }
                 }
 
-                else -> if (sortOrder == SortOrder.Sort_By_Date_Oldest) {
+                SortOrder.Sort_By_Date_Oldest -> {
                     res.list.sortedBy { note: Note -> note.createdAt }
-                } else {
+                        .filter { note: Note -> !note.pinned }
+                }
+
+                else -> {
                     res.list.sortedByDescending { note: Note -> note.createdAt }
-                }.filter { note: Note -> !note.pinned }
+                        .filter { note: Note -> !note.pinned }
+                }
             })
         } ?: flow { Results.Error("No Notes") }
     }
@@ -56,21 +63,28 @@ class MongoDB {
             Results.Success(data = when (sortOrder) {
                 SortOrder.Sort_By_Desc -> {
                     res.list.sortedByDescending { notes -> notes.title }
+                        .filter { note: Note -> note.pinned }
                 }
 
                 SortOrder.Sort_By_Asc -> {
                     res.list.sortedBy { note: Note -> note.title }
+                        .filter { note: Note -> note.pinned }
                 }
 
                 SortOrder.Sort_By_Date_Latest -> {
                     res.list.sortedByDescending { note: Note -> note.createdAt }
+                        .filter { note: Note -> note.pinned }
                 }
 
-                else -> if (sortOrder == SortOrder.Sort_By_Date_Oldest) {
+                SortOrder.Sort_By_Date_Oldest -> {
                     res.list.sortedBy { note: Note -> note.createdAt }
-                } else {
+                        .filter { note: Note -> note.pinned }
+                }
+
+                else -> {
                     res.list.sortedByDescending { note: Note -> note.createdAt }
-                }.filter { note: Note -> note.pinned }
+                        .filter { note: Note -> note.pinned }
+                }
             })
         } ?: flow { Results.Error("No Pinned Notes") }
     }

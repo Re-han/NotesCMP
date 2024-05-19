@@ -117,7 +117,7 @@ class HomePageNotes : Screen {
                                     showDialog = false
                                 }) {
                                 Text(
-                                    text = sortList[it].toString().replace("_"," "),
+                                    text = sortList[it].toString().replace("_", " "),
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(16.dp)
@@ -220,20 +220,21 @@ class HomePageNotes : Screen {
                     shape = RoundedCornerShape(20.dp),
                 )
 
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(top = 16.dp, start = 16.dp, end = 16.dp)
-                ) {
-                    Text("Sort By")
-                    Icon(
-                        Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = null,
-                        modifier = Modifier.clickable {
-                            showDialog = true
-                        })
-                }
+                if (searchValue.isBlank())
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    ) {
+                        Text("Sort By")
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = null,
+                            modifier = Modifier.clickable {
+                                showDialog = true
+                            })
+                    }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
