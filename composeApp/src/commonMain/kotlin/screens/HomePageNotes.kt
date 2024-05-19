@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -78,6 +79,8 @@ class HomePageNotes : Screen {
         var searchValue by remember { mutableStateOf("") }
         var gridListView by remember { mutableStateOf(false) }
         var showDialog by remember { mutableStateOf(false) }
+        var searchNotesPinned = remember { mutableListOf<Note>() }
+        var searchNotes = remember { mutableListOf<Note>() }
         val sortList = remember {
             mutableListOf(
                 "Sort by Ascending",
@@ -104,7 +107,9 @@ class HomePageNotes : Screen {
                     LazyColumn {
                         items(sortList.size) {
                             Column(modifier = Modifier
-                                .clickable { }) {
+                                .clickable {
+                                    //TODO:Add logic for sorting
+                                }) {
                                 Text(
                                     text = sortList[it],
                                     modifier = Modifier
@@ -148,9 +153,18 @@ class HomePageNotes : Screen {
             ) {
                 TextField(
                     value = searchValue,
-                    onValueChange = {
-                        searchValue = it
+                    onValueChange = { searchInput ->
+                        searchValue = searchInput
+
+                        searchNotesPinned = (pinnedNotes.getSuccessDataOrNull()?.filter {
+                            it.title.contains(searchValue) || it.description.contains(searchValue)
+                        } ?: listOf()) as MutableList<Note>
+
+                        searchNotes = (otherNotes.getSuccessDataOrNull()?.filter {
+                            it.title.contains(searchValue) || it.description.contains(searchValue)
+                        } ?: listOf()).toMutableList()
                     },
+
                     colors = TextFieldDefaults.textFieldColors(
                         disabledTextColor = Color.Transparent,
                         focusedIndicatorColor = Color.Transparent,
@@ -210,14 +224,17 @@ class HomePageNotes : Screen {
                         pinned = { note, notePinned ->
                             noteDetailsVM.setEvents(NoteEvents.SetPinned(note, notePinned))
                         },
+                        searchNotes = searchNotesPinned,
                         noteResults = pinnedNotes,
                         gridListView = gridListView,
-                        sectionTitle = "Pinned Notes"
+                        sectionTitle = "Pinned Notes",
+                        searchValue = searchValue
                     )
                 }
                 Column {
                     NotesUIAndOperations(
                         Modifier,
+                        noteResults = otherNotes,
                         onSelect = {
                             navigator.push(NoteDetailScreen(it, false))
                         },
@@ -227,13 +244,16 @@ class HomePageNotes : Screen {
                         pinned = { note, notePinned ->
                             noteDetailsVM.setEvents(NoteEvents.SetPinned(note, notePinned))
                         },
-                        noteResults = otherNotes,
+                        searchNotes = searchNotes,
                         gridListView = gridListView,
-                        sectionTitle = "Other Notes"
+                        sectionTitle = "Other Notes",
+                        searchValue = searchValue
                     )
                 }
                 if (pinnedNotes.getSuccessDataOrNull()?.isEmpty() == true
-                    && otherNotes.getSuccessDataOrNull()?.isEmpty() == true
+                    && otherNotes.getSuccessDataOrNull()
+                        ?.isEmpty() == true && searchNotes?.isEmpty() == true
+                    && searchNotesPinned?.isEmpty() == true
                 )
                     Text(
                         "No Notes",
@@ -255,7 +275,9 @@ fun NotesUIAndOperations(
     onDelete: ((Note) -> Unit)? = null,
     pinned: ((Note, Boolean) -> Unit)? = null,
     gridListView: Boolean,
-    sectionTitle: String
+    sectionTitle: String,
+    searchNotes: MutableList<Note>,
+    searchValue: String
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var noteToDelete: Note? by remember { mutableStateOf(null) }
@@ -319,7 +341,9 @@ fun NotesUIAndOperations(
                             verticalItemSpacing = 8.dp,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             content = {
-                                items(notes, key = { note -> note._id.toHexString() }) { note ->
+                                items(
+                                    if (searchValue.isNotBlank()) searchNotes else notes,
+                                    key = { note -> note._id.toHexString() }) { note ->
                                     Card(
                                         modifier = Modifier.fillMaxWidth()
                                             .combinedClickable(onClick = {
@@ -395,7 +419,9 @@ fun NotesUIAndOperations(
                             modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)
                                 .fillMaxWidth()
                         ) {
-                            items(notes, key = { note -> note._id.toHexString() }) { note ->
+                            items(
+                                if (searchValue.isNotBlank()) searchNotes else notes,
+                                key = { note -> note._id.toHexString() }) { note ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth()
                                         .combinedClickable(onClick = {

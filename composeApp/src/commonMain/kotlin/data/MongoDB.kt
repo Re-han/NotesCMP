@@ -25,7 +25,7 @@ class MongoDB {
         }
     }
 
-    fun readAllNotes(): Flow<Results<List<Note>>> {
+    fun readOtherNotes(): Flow<Results<List<Note>>> {
         return realm?.query<Note>(query = "createdAt != $0", 0L)?.asFlow()?.map { res ->
             Results.Success(data = res.list.sortedByDescending { notes -> notes.createdAt }
                 .filter { note: Note -> !note.pinned })

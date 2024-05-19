@@ -25,7 +25,7 @@ class HomeVM(private var mongoDB: MongoDB) : ScreenModel {
             }
         }
         screenModelScope.launch(Dispatchers.Main) {
-            mongoDB.readAllNotes().collectLatest {
+            mongoDB.readOtherNotes().collectLatest {
                 _otherNote.value = it
             }
         }
