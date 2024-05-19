@@ -11,7 +11,6 @@ import screens.HomePageNotes
 
 val mongoModule = module {
     single { MongoDB() }
-    single { HomePageNotes(get()) }
     factory { HomeVM(get()) }
     factory { NoteDetailsVM(get()) }
 }

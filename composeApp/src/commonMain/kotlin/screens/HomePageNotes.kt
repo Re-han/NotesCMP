@@ -1,6 +1,6 @@
 package screens
 
-import AppContants
+import AppConstants
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -74,12 +74,14 @@ import domain.Results
 import domain.SortOrder
 import domain.core.Preferences
 import epochToNormalTime
+import stringToSortOrder
 
 class HomePageNotes(private val pref: Preferences) : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
-        val gridValue = pref.getBool(AppContants.GRID_VIEW, false)
+        val gridValue = pref.getBool(AppConstants.GRID_VALUE, false)
+        val sortOrder = pref.getString(AppConstants.SORT_ORDER)
         val navigator = LocalNavigator.currentOrThrow
         var searchValue by remember { mutableStateOf("") }
         var searchFocused by remember { mutableStateOf(false) }
@@ -96,11 +98,13 @@ class HomePageNotes(private val pref: Preferences) : Screen {
             )
         }
         val homeVM = getScreenModel<HomeVM>()
+        homeVM.sortOrder = stringToSortOrder(sortOrder)
         val noteDetailsVM = getScreenModel<NoteDetailsVM>()
         val pinnedNotes by homeVM.pinnedNotes
         val otherNotes by homeVM.otherNotes
         val focusRequester = remember { FocusRequester() }
         val focusManager = LocalFocusManager.current
+
 
         if (showDialog)
             Dialog(onDismissRequest = {
@@ -115,8 +119,13 @@ class HomePageNotes(private val pref: Preferences) : Screen {
                     LazyColumn {
                         items(sortList.size) {
                             Column(modifier = Modifier
+                                .background(if (sortOrder == sortList[it].toString()) MaterialTheme.colorScheme.surfaceContainer else Color.White)
                                 .clickable {
                                     homeVM.sorting(sortList[it])
+                                    pref.putString(
+                                        AppConstants.SORT_ORDER,
+                                        sortList[it].toString()
+                                    )
                                     showDialog = false
                                 }) {
                                 Text(
@@ -210,7 +219,7 @@ class HomePageNotes(private val pref: Preferences) : Screen {
                                     Modifier.clickable {
                                         gridListView = false
                                         pref.putBool(
-                                            AppContants.GRID_VIEW,
+                                            AppConstants.GRID_VALUE,
                                             gridListView
                                         )
                                     })
@@ -221,7 +230,7 @@ class HomePageNotes(private val pref: Preferences) : Screen {
                                     Modifier.clickable {
                                         gridListView = true
                                         pref.putBool(
-                                            AppContants.GRID_VIEW,
+                                            AppConstants.GRID_VALUE,
                                             gridListView
                                         )
                                     })

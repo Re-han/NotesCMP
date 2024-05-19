@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class HomeVM(private var mongoDB: MongoDB) : ScreenModel {
+
+    var sortOrder: SortOrder = Sort_By_Date_Latest
     fun sorting(sortOrder: SortOrder) {
         when (sortOrder) {
             Sort_By_Asc -> {
@@ -78,12 +80,12 @@ class HomeVM(private var mongoDB: MongoDB) : ScreenModel {
 
     init {
         screenModelScope.launch(Dispatchers.Main) {
-            mongoDB.readPinnedNotes().collectLatest {
+            mongoDB.readPinnedNotes(sortOrder).collectLatest {
                 _pinnedNote.value = it
             }
         }
         screenModelScope.launch(Dispatchers.Main) {
-            mongoDB.readOtherNotes().collectLatest {
+            mongoDB.readOtherNotes(sortOrder).collectLatest {
                 _otherNote.value = it
             }
         }

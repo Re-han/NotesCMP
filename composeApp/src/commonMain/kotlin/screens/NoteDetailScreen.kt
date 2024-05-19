@@ -62,7 +62,7 @@ class NoteDetailScreen(private val note: Note? = null, private val Add: Boolean)
                             Icons.AutoMirrored.Filled.ArrowBackIos,
                             contentDescription = null,
                             modifier = Modifier.padding(horizontal = 16.dp).clickable {
-                                if (Add && titleValue.isNotBlank() && descriptionValue.isNotBlank()) {
+                                if (Add && titleValue.isNotBlank()) {
                                     val note = Note().apply {
                                         title = titleValue
                                         description = descriptionValue
@@ -71,7 +71,7 @@ class NoteDetailScreen(private val note: Note? = null, private val Add: Boolean)
                                     }
                                     noteDetailsVM.setEvents(NoteEvents.Add(note))
                                 } else {
-                                    if (titleValue.isNotBlank() && descriptionValue.isNotBlank()) {
+                                    if (titleValue.isNotBlank()) {
                                         val note = Note().apply {
                                             _id = note?._id!!
                                             title = titleValue
